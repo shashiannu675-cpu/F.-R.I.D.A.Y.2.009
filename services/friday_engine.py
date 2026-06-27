@@ -1,4 +1,4 @@
-import httpx
+import google.generativeai as genai
 from fastapi import HTTPException
 from config import settings
 
@@ -19,15 +19,25 @@ class FridayEngine:
             raise HTTPException(status_code=500, detail="PRIMARY_AI_API_KEY is missing in Render.")
 
         try:
-            self.active_users[user_id]["history"].append(prompt)
-            # This is where the external APIs will be connected later
+            # 1. Connect to Gemini using your secret key from Render
+            genai.configure(api_key=settings.PRIMARY_AI_API_KEY)
+            
+            # 2. Load the Gemini model (using gemini-1.5-flash for fast responses)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # 3. Send the prompt and get the answer
+            ai_response = model.generate_content(prompt)
+            answer = ai_response.text
+
+            # 4. Save to user history
+            self.active_users[user_id]["history"].append({"user": prompt, "friday": answer})
+            
             return {
                 "user_id": user_id,
-                "friday_response": f"Processed '{prompt}' securely.",
+                "friday_response": answer,
                 "status": "success"
             }
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Gemini API Error: {str(e)}")
 
 engine = FridayEngine()
-
